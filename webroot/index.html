@@ -769,6 +769,20 @@
         const selected = apps.filter((app) => app.selected);
         if (selected.length === 0 || running) return;
 
+        const startConfirmed = await showDecisionDialog(
+          force ? "重新执行选中 APP？" : "执行选中 APP？",
+          [
+            `已选择：${selected.length} 个 APP`,
+            "",
+            "继续后会先检测执行状态和后台运行状态；只有确认后的待执行 APP 才会被处理。"
+          ].join("\n"),
+          "继续"
+        );
+        if (!startConfirmed) {
+          toast("已取消执行");
+          return;
+        }
+
         running = true;
         selected.forEach((app) => {
           app.status = "checking";
