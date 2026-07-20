@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Force System WebView</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f7f8;
+        --surface: #ffffff;
+        --surface-elevated: #ffffff;
+        --surface-soft: #f1f2f4;
+        --separator: rgba(60, 60, 67, 0.14);
+        --text: #19191d;
+        --text-secondary: #6f7078;
+        --text-tertiary: #9a9ba3;
+        --accent: #0a84ff;
+        --accent-pressed: #006edb;
+        --green: #2fbf72;
+        --orange: #ff9f0a;
+        --red: #ff453a;
+        --shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+        --group-radius: 22px;
+        --control-radius: 17px;
+        --button-radius: 18px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #000000;
+          --surface: #1c1c1e;
+          --surface-elevated: #242426;
+          --surface-soft: #2c2c2e;
+          --separator: rgba(235, 235, 245, 0.12);
+          --text: #f5f5f7;
+          --text-secondary: #b4b4bb;
+          --text-tertiary: #7d7d86;
+          --accent: #0a84ff;
+          --accent-pressed: #409cff;
+          --green: #32d583;
+          --orange: #ffb340;
+          --red: #ff6961;
+          --shadow: none;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--bg);
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: 0;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .shell {
+        width: min(820px, 100%);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: 18px 14px 28px;
+      }
+
+      .top-app-bar {
+        padding: 18px 6px 14px;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--text);
+        font-size: 32px;
+        font-weight: 750;
+        line-height: 1.12;
+        letter-spacing: 0;
+      }
+
+      .runtime-pill {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        min-height: 26px;
+        margin-top: 10px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 560;
+      }
+
+      .section {
+        margin-top: 18px;
+      }
+
+      .section-title {
+        margin: 0 0 8px;
+        padding: 0 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        min-width: 0;
+        min-height: 72px;
+        padding: 12px;
+        border: 0.5px solid var(--separator);
+        border-radius: var(--group-radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--text);
+        font-size: 24px;
+        font-weight: 760;
+        line-height: 1.05;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 5px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 560;
+      }
+
+      .preference-group {
+        overflow: hidden;
+        border: 0.5px solid var(--separator);
+        border-radius: var(--group-radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .app-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        min-height: 72px;
+        gap: 12px;
+        padding: 12px 14px 12px 18px;
+        background: var(--surface);
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .app-row:not(:last-child)::after {
+        position: absolute;
+        right: 14px;
+        bottom: 0;
+        left: 18px;
+        height: 0.5px;
+        background: var(--separator);
+        content: "";
+      }
+
+      .app-row:active {
+        background: var(--surface-soft);
+      }
+
+      .app-main {
+        min-width: 0;
+      }
+
+      .app-name {
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 650;
+        line-height: 1.25;
+      }
+
+      .pkg {
+        margin-top: 4px;
+        color: var(--text-secondary);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .row-end {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .badge {
+        min-width: 64px;
+        min-height: 28px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--text-secondary);
+        text-align: center;
+        font-size: 12px;
+        font-weight: 680;
+        line-height: 1.25;
+        white-space: nowrap;
+      }
+
+      .badge.ok {
+        background: rgba(47, 191, 114, 0.16);
+        background: color-mix(in srgb, var(--green) 16%, transparent);
+        color: var(--green);
+      }
+
+      .badge.pending {
+        background: rgba(255, 159, 10, 0.18);
+        background: color-mix(in srgb, var(--orange) 18%, transparent);
+        color: var(--orange);
+      }
+
+      .badge.fail {
+        background: rgba(255, 69, 58, 0.16);
+        background: color-mix(in srgb, var(--red) 16%, transparent);
+        color: var(--red);
+      }
+
+      input[type="checkbox"] {
+        position: relative;
+        flex: 0 0 auto;
+        width: 28px;
+        height: 28px;
+        margin: 0;
+        border: 2px solid var(--separator);
+        border-radius: 50%;
+        appearance: none;
+        background: var(--surface-soft);
+      }
+
+      input[type="checkbox"]:checked {
+        border-color: var(--accent);
+        background: var(--accent);
+      }
+
+      input[type="checkbox"]:checked::after {
+        position: absolute;
+        top: 5px;
+        left: 9px;
+        width: 6px;
+        height: 11px;
+        border: solid #ffffff;
+        border-width: 0 2px 2px 0;
+        content: "";
+        transform: rotate(45deg);
+      }
+
+      input[type="checkbox"]:disabled {
+        opacity: 0.5;
+      }
+
+      .log-group {
+        overflow: hidden;
+        border: 0.5px solid var(--separator);
+        border-radius: var(--group-radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .log-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 50px;
+        padding: 8px 10px 8px 18px;
+        border-bottom: 0.5px solid var(--separator);
+      }
+
+      .log-head strong {
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 650;
+      }
+
+      .text-button {
+        min-height: 34px;
+        border: 0;
+        border-radius: var(--control-radius);
+        background: var(--surface-soft);
+        color: var(--accent);
+        padding: 0 14px;
+        font-size: 14px;
+        font-weight: 650;
+      }
+
+      .text-button:active {
+        background: rgba(10, 132, 255, 0.12);
+        background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft));
+      }
+
+      pre {
+        min-height: 178px;
+        max-height: 360px;
+        margin: 0;
+        padding: 14px 16px 16px;
+        overflow: auto;
+        color: var(--text-secondary);
+        font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
+      .action-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        padding: 10px;
+        border: 0.5px solid var(--separator);
+        border-radius: var(--group-radius);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .action-button {
+        min-height: 46px;
+        border: 0;
+        border-radius: var(--button-radius);
+        background: var(--surface-elevated);
+        color: var(--text);
+        padding: 0 12px;
+        font-size: 14px;
+        font-weight: 680;
+        box-shadow: var(--shadow);
+      }
+
+      .action-button.primary {
+        grid-column: 1 / -1;
+        min-height: 50px;
+      }
+
+      .action-button.primary {
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      .action-button:active {
+        transform: scale(0.985);
+      }
+
+      .action-button.primary:active {
+        background: var(--accent-pressed);
+      }
+
+      .action-button:disabled,
+      .text-button:disabled {
+        opacity: 0.45;
+      }
+
+      .dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(0, 0, 0, 0.32);
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+      }
+
+      .dialog-backdrop[hidden] {
+        display: none;
+      }
+
+      .dialog {
+        width: min(430px, 100%);
+        overflow: hidden;
+        border: 0.5px solid var(--separator);
+        border-radius: 28px;
+        background: var(--surface-elevated);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+      }
+
+      .dialog-content {
+        padding: 24px 22px 18px;
+      }
+
+      .dialog-title {
+        margin: 0;
+        color: var(--text);
+        font-size: 21px;
+        font-weight: 760;
+        line-height: 1.2;
+        text-align: center;
+      }
+
+      .dialog-message {
+        max-height: 48vh;
+        margin: 14px 0 0;
+        overflow: auto;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+
+      .dialog-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-top: 0.5px solid var(--separator);
+      }
+
+      .dialog-button {
+        min-height: 52px;
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        font-size: 16px;
+        font-weight: 650;
+      }
+
+      .dialog-button + .dialog-button {
+        border-left: 0.5px solid var(--separator);
+      }
+
+      .dialog-button.primary {
+        font-weight: 760;
+      }
+
+      @media (max-width: 620px) {
+        .shell {
+          padding-right: 12px;
+          padding-left: 12px;
+        }
+
+        h1 {
+          font-size: 30px;
+        }
+
+        .summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .action-button {
+          min-height: 44px;
+          padding: 0 8px;
+          font-size: 13px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="top-app-bar">
+        <h1>Force System WebView</h1>
+        <div class="runtime-pill" id="runtimeText">等待 KernelSU WebUI 连接</div>
+      </header>
+
+      <section class="section" aria-label="操作">
+        <h2 class="section-title">操作</h2>
+        <div class="action-panel">
+          <button class="action-button primary" id="runBtn">执行选中</button>
+          <button class="action-button" id="forceRunBtn">重新执行</button>
+          <button class="action-button" id="detectBtn">检测状态</button>
+          <button class="action-button" id="selectAllBtn">全选</button>
+          <button class="action-button" id="reloadBtn">刷新</button>
+        </div>
+      </section>
+
+      <section class="section" aria-label="状态汇总">
+        <div class="summary-grid">
+          <div class="metric"><strong id="selectedCount">0</strong><span>已选</span></div>
+          <div class="metric"><strong id="doneCount">0</strong><span>已完成</span></div>
+          <div class="metric"><strong id="pendingCount">0</strong><span>待执行</span></div>
+          <div class="metric"><strong id="failCount">0</strong><span>异常</span></div>
+        </div>
+      </section>
+
+      <section class="section" aria-label="APP 列表">
+        <h2 class="section-title">目标应用</h2>
+        <div class="preference-group" id="appList"></div>
+      </section>
+
+      <section class="section" aria-label="执行日志">
+        <h2 class="section-title">日志</h2>
+        <div class="log-group">
+          <div class="log-head">
+            <strong>执行日志</strong>
+            <button class="text-button" id="copyLogBtn">复制</button>
+          </div>
+          <pre id="logOutput">暂无日志</pre>
+        </div>
+      </section>
+    </main>
+
+    <div class="dialog-backdrop" id="dialogBackdrop" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+        <div class="dialog-content">
+          <h2 class="dialog-title" id="dialogTitle">确认执行</h2>
+          <div class="dialog-message" id="dialogMessage"></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="dialog-button" id="dialogCancelBtn">取消</button>
+          <button class="dialog-button primary" id="dialogConfirmBtn">执行</button>
+        </div>
+      </section>
+    </div>
+
+    <script type="module">
+      import { exec, toast } from "./kernelsu.js";
+
+      const MODULE_ID = "force_system_webview";
+      const SCRIPT_PATH = `/data/adb/modules/${MODULE_ID}/scripts/force_system_webview.sh`;
+      const CONFIG_PATH = `/data/adb/modules/${MODULE_ID}/scripts/apps.conf`;
+      const fallbackApps = [
+        ["com.sankuai.meituan", "美团"],
+        ["com.jingdong.app.mall", "京东"],
+        ["com.taobao.taobao", "淘宝"],
+        ["com.taobao.idlefish", "闲鱼"],
+        ["com.tencent.mobileqq", "QQ"],
+        ["com.alipay.mobile.quinox", "支付宝国际 Play 版"],
+        ["com.dingtalk.mobile", "钉钉"]
+      ];
+
+      let apps = [];
+      let running = false;
+      let dialogResolver = null;
+
+      const appList = document.querySelector("#appList");
+      const runtimeText = document.querySelector("#runtimeText");
+      const logOutput = document.querySelector("#logOutput");
+      const runBtn = document.querySelector("#runBtn");
+      const forceRunBtn = document.querySelector("#forceRunBtn");
+      const detectBtn = document.querySelector("#detectBtn");
+      const selectAllBtn = document.querySelector("#selectAllBtn");
+      const reloadBtn = document.querySelector("#reloadBtn");
+      const copyLogBtn = document.querySelector("#copyLogBtn");
+      const dialogBackdrop = document.querySelector("#dialogBackdrop");
+      const dialogTitle = document.querySelector("#dialogTitle");
+      const dialogMessage = document.querySelector("#dialogMessage");
+      const dialogCancelBtn = document.querySelector("#dialogCancelBtn");
+      const dialogConfirmBtn = document.querySelector("#dialogConfirmBtn");
+
+      function parseConfig(text) {
+        return text
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith("#"))
+          .map((line) => {
+            const [pkg, name, dirs = ""] = line.split("|");
+            return { pkg, name, dirs, selected: true, status: "idle", message: "未执行" };
+          })
+          .filter((app) => /^[a-zA-Z0-9._-]+$/.test(app.pkg) && app.name);
+      }
+
+      function fallbackConfig() {
+        return fallbackApps.map(([pkg, name]) => ({
+          pkg,
+          name,
+          dirs: "",
+          selected: true,
+          status: "idle",
+          message: "未执行"
+        }));
+      }
+
+      function statusText(status) {
+        return {
+          idle: "未执行",
+          checking: "检测中",
+          running: "执行中",
+          DONE: "已完成",
+          PENDING: "待执行",
+          OK: "成功",
+          PARTIAL: "部分失败",
+          FAIL: "失败",
+          RUNNING: "未停止",
+          NOT_INSTALLED: "未安装"
+        }[status] || status;
+      }
+
+      function statusClass(status) {
+        if (status === "OK" || status === "DONE") return "ok";
+        if (status === "PENDING" || status === "PARTIAL" || status === "checking" || status === "running") return "pending";
+        if (status === "FAIL" || status === "RUNNING") return "fail";
+        return "";
+      }
+
+      function render() {
+        appList.innerHTML = "";
+        for (const app of apps) {
+          const row = document.createElement("label");
+          row.className = "app-row";
+
+          const info = document.createElement("div");
+          info.className = "app-main";
+          const name = document.createElement("div");
+          name.className = "app-name";
+          name.textContent = app.name;
+          const pkg = document.createElement("div");
+          pkg.className = "pkg";
+          pkg.textContent = app.pkg;
+          info.append(name, pkg);
+
+          const rowEnd = document.createElement("div");
+          rowEnd.className = "row-end";
+
+          const badge = document.createElement("div");
+          badge.className = `badge ${statusClass(app.status)}`;
+          badge.textContent = statusText(app.status);
+          if (app.message) {
+            badge.title = app.message;
+          }
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = app.selected;
+          checkbox.disabled = running;
+          checkbox.addEventListener("change", () => {
+            app.selected = checkbox.checked;
+            updateSummary();
+          });
+
+          rowEnd.append(badge, checkbox);
+          row.append(info, rowEnd);
+          appList.append(row);
+        }
+        updateSummary();
+      }
+
+      function updateSummary() {
+        const selectedCount = apps.filter((app) => app.selected).length;
+        document.querySelector("#selectedCount").textContent = selectedCount;
+        document.querySelector("#doneCount").textContent = apps.filter((app) => isComplete(app)).length;
+        document.querySelector("#pendingCount").textContent = apps.filter((app) => isPending(app)).length;
+        document.querySelector("#failCount").textContent = apps.filter((app) => app.status === "FAIL" || app.status === "RUNNING").length;
+        runBtn.disabled = running || selectedCount === 0;
+        forceRunBtn.disabled = running || selectedCount === 0;
+        detectBtn.disabled = running || apps.length === 0;
+        selectAllBtn.textContent = apps.length > 0 && selectedCount === apps.length ? "取消全选" : "全选";
+        selectAllBtn.disabled = running;
+        reloadBtn.disabled = running;
+      }
+
+      function parseResults(stdout) {
+        const resultLines = stdout.split(/\r?\n/).filter((line) => line.startsWith("APP_RESULT|"));
+        for (const line of resultLines) {
+          const [, pkg, status, message = ""] = line.split("|");
+          const app = apps.find((item) => item.pkg === pkg);
+          if (app) {
+            app.status = status;
+            app.message = message;
+          }
+        }
+      }
+
+      function shellArg(value) {
+        if (!/^[a-zA-Z0-9._-]+$/.test(value)) {
+          throw new Error(`Unsafe package name: ${value}`);
+        }
+        return value;
+      }
+
+      function isComplete(app) {
+        return app.status === "DONE" || app.status === "OK";
+      }
+
+      function isPending(app) {
+        return app.status === "PENDING" || app.status === "PARTIAL";
+      }
+
+      function isBlockedByRunning(app) {
+        return app.status === "RUNNING";
+      }
+
+      function formatAppList(items) {
+        if (items.length === 0) return "无";
+        return items.map((app) => `${app.name} (${app.pkg})`).join("\n");
+      }
+
+      function showDecisionDialog(title, message, confirmText = "执行") {
+        dialogTitle.textContent = title;
+        dialogMessage.textContent = message;
+        dialogConfirmBtn.textContent = confirmText;
+        dialogBackdrop.hidden = false;
+        dialogConfirmBtn.focus();
+
+        return new Promise((resolve) => {
+          dialogResolver = resolve;
+        });
+      }
+
+      function closeDecisionDialog(confirmed) {
+        if (!dialogResolver) return;
+        const resolve = dialogResolver;
+        dialogResolver = null;
+        dialogBackdrop.hidden = true;
+        resolve(confirmed);
+      }
+
+      async function detectApps(targets = apps) {
+        if (targets.length === 0 || running) return;
+
+        running = true;
+        targets.forEach((app) => {
+          app.status = "checking";
+          app.message = "检测中";
+        });
+        render();
+        logOutput.textContent = "正在检测...";
+
+        try {
+          const args = targets.map((app) => shellArg(app.pkg)).join(" ");
+          const { errno, stdout, stderr } = await exec(`sh ${SCRIPT_PATH} --detect ${args}`);
+          parseResults(stdout);
+          logOutput.textContent = [stdout, stderr].filter(Boolean).join("\n");
+          toast(errno === 0 ? "检测完成" : "检测完成，存在异常项");
+        } catch (error) {
+          targets.forEach((app) => {
+            if (app.status === "checking") {
+              app.status = "FAIL";
+              app.message = "检测异常";
+            }
+          });
+          logOutput.textContent = String(error.message || error);
+          toast("检测失败");
+        } finally {
+          running = false;
+          render();
+        }
+      }
+
+      async function loadApps() {
+        try {
+          const { errno, stdout, stderr } = await exec(`cat ${CONFIG_PATH}`);
+          if (errno !== 0) {
+            throw new Error(stderr || `cat exited with ${errno}`);
+          }
+          apps = parseConfig(stdout);
+          runtimeText.textContent = "KernelSU WebUI 已连接";
+          logOutput.textContent = "APP 配置已加载，正在自动检测...";
+          render();
+          await detectApps(apps);
+          return;
+        } catch (error) {
+          apps = fallbackConfig();
+          runtimeText.textContent = "未检测到 KernelSU WebUI API";
+          logOutput.textContent = String(error.message || error);
+        }
+        render();
+      }
+
+      async function runSelected(force = false) {
+        const selected = apps.filter((app) => app.selected);
+        if (selected.length === 0 || running) return;
+
+        running = true;
+        selected.forEach((app) => {
+          app.status = "checking";
+          app.message = "执行前检测中";
+        });
+        render();
+        logOutput.textContent = "正在执行前检测...";
+
+        try {
+          const detectArgs = selected.map((app) => shellArg(app.pkg)).join(" ");
+          const preflightMode = force ? "--preflight-force" : "--preflight";
+          const detectResult = await exec(`sh ${SCRIPT_PATH} ${preflightMode} ${detectArgs}`);
+          parseResults(detectResult.stdout);
+          render();
+
+          const completed = selected.filter((app) => isComplete(app));
+          const runningApps = selected.filter((app) => isBlockedByRunning(app));
+          const pending = force
+            ? selected.filter((app) => app.status !== "NOT_INSTALLED" && !isBlockedByRunning(app))
+            : selected.filter((app) => !isComplete(app) && app.status !== "NOT_INSTALLED" && !isBlockedByRunning(app));
+
+          const prompt = [
+            `已执行成功，无需再次执行：${completed.length} 个`,
+            formatAppList(completed),
+            "",
+            `仍在运行，需先强行停止：${runningApps.length} 个`,
+            formatAppList(runningApps),
+            "",
+            force ? `将重新执行：${pending.length} 个` : `还未执行或未完整完成：${pending.length} 个`,
+            formatAppList(pending)
+          ].join("\n");
+
+          if (pending.length === 0) {
+            logOutput.textContent = [detectResult.stdout, detectResult.stderr, "没有待执行 APP。"].filter(Boolean).join("\n");
+            toast("没有待执行 APP");
+            return;
+          }
+
+          const confirmed = await showDecisionDialog("确认执行", prompt, force ? "重新执行" : "执行");
+          if (!confirmed) {
+            logOutput.textContent = [detectResult.stdout, "已取消执行"].filter(Boolean).join("\n");
+            toast("已取消执行");
+            return;
+          }
+
+          pending.forEach((app) => {
+            app.status = "running";
+            app.message = "执行中";
+          });
+          render();
+          logOutput.textContent = "正在执行...";
+
+          const args = pending.map((app) => shellArg(app.pkg)).join(" ");
+          const command = force ? `sh ${SCRIPT_PATH} --force ${args}` : `sh ${SCRIPT_PATH} ${args}`;
+          const { errno, stdout, stderr } = await exec(command);
+          parseResults(stdout);
+          logOutput.textContent = [detectResult.stdout, stdout, stderr].filter(Boolean).join("\n");
+          toast(errno === 0 ? "执行完成" : "执行完成，存在失败项");
+        } catch (error) {
+          selected.forEach((app) => {
+            if (app.status === "running" || app.status === "checking") {
+              app.status = "FAIL";
+              app.message = "执行异常";
+            }
+          });
+          logOutput.textContent = String(error.message || error);
+          toast("执行失败");
+        } finally {
+          apps.forEach((app) => {
+            if (app.status === "running") {
+              app.status = "FAIL";
+              app.message = "未收到脚本结果";
+            }
+          });
+          running = false;
+          render();
+        }
+      }
+
+      runBtn.addEventListener("click", () => runSelected(false));
+      forceRunBtn.addEventListener("click", () => runSelected(true));
+      detectBtn.addEventListener("click", () => detectApps(apps));
+      selectAllBtn.addEventListener("click", () => {
+        const shouldSelectAll = apps.some((app) => !app.selected);
+        apps.forEach((app) => { app.selected = shouldSelectAll; });
+        render();
+      });
+      reloadBtn.addEventListener("click", loadApps);
+      copyLogBtn.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(logOutput.textContent);
+        toast("日志已复制");
+      });
+      dialogCancelBtn.addEventListener("click", () => closeDecisionDialog(false));
+      dialogConfirmBtn.addEventListener("click", () => closeDecisionDialog(true));
+      dialogBackdrop.addEventListener("click", (event) => {
+        if (event.target === dialogBackdrop) {
+          closeDecisionDialog(false);
+        }
+      });
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !dialogBackdrop.hidden) {
+          closeDecisionDialog(false);
+        }
+      });
+
+      loadApps();
+    </script>
+  </body>
+</html>
